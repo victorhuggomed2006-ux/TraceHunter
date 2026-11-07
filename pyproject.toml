@@ -50,6 +50,7 @@ include = ["tracehunter*"]
 [tool.setuptools.package-data]
 tracehunter = ["py.typed"]
 "tracehunter.api" = ["static/*.html", "static/*.css", "static/*.js"]
+"tracehunter.domain" = ["prices.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

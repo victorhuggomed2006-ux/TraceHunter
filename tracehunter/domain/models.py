@@ -5,7 +5,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 _MAX_JSON_DEPTH = 20
 
@@ -253,6 +253,20 @@ class Trace:
         if self._end_time is None:
             return None
         return (self._end_time - self._start_time).total_seconds()
+
+    @property
+    def token_usage(self) -> Tuple[int, int]:
+        """Sum of (input, output) tokens that spans report in `metadata` (0 when absent)."""
+        total_in = total_out = 0
+        for span in self.spans:
+            for key in ("input_tokens", "output_tokens"):
+                value = span.metadata.get(key)
+                if isinstance(value, int) and not isinstance(value, bool):
+                    if key == "input_tokens":
+                        total_in += value
+                    else:
+                        total_out += value
+        return total_in, total_out
 
     def add_span(self, span: Span) -> None:
         """Add a span to the trace and attach it to it.

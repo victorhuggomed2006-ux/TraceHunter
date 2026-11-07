@@ -71,10 +71,7 @@ def _usage(span: Span, key: str) -> int:
 
 def trace_tokens(trace: Trace) -> Tuple[int, int]:
     """Sum of tokens (input, output) of the model responses in the trace."""
-    spans = trace.spans
-    return sum(_usage(s, "input_tokens") for s in spans), sum(
-        _usage(s, "output_tokens") for s in spans
-    )
+    return trace.token_usage
 
 
 COLUMNS = ("", "when", "project", "prompt", "steps", "tok", "time")

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Estimated cost (USD) per trace in the web interface and the API (`cost_usd`), from a bundled snapshot of OpenRouter list prices (`scripts/update_prices.py` refreshes it). It is an estimate at list prices: it ignores subscription plans, discounts and batch pricing, and models missing from the table get no cost. The Claude Code collector now also records cache token counts.
+- The web interface shows token usage (input / output) per trace in the list and in the trace detail; the API returns it as `tokens`.
+
 ## 0.1.0 (2026-11-08)
 
 First public version (alpha).

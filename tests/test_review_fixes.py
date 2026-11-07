@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from tracehunter import ClaudeCodeCollector, CollectorSync, InMemoryTraceRepository, Tracer
+from tracehunter.domain.models import Span, Trace
+from tracehunter.domain.pricing import ModelPrice, PriceTable, normalize_model
 from tracehunter.domain.redaction import redact, safe_text
 
 
@@ -160,3 +162,87 @@ class TestCollectorRobustness:
         sync = CollectorSync(Broken(Path("nowhere")), InMemoryTraceRepository(), interval=0.05)
         sync.start()
         sync.stop()
+
+
+class TestTokenUsage:
+    def test_trace_sums_tokens_and_ignores_bad_values(self) -> None:
+        trace = Trace("t")
+        trace.add_span(Span("a", span_id="1", metadata={"input_tokens": 10, "output_tokens": 4}))
+        trace.add_span(
+            Span("b", span_id="2", metadata={"input_tokens": "x", "output_tokens": True})
+        )
+        trace.add_span(Span("c", span_id="3", metadata={"input_tokens": 5}))
+        assert trace.token_usage == (15, 4)
+
+    def test_api_exposes_tokens_in_list_and_detail(self) -> None:
+        from fastapi.testclient import TestClient
+
+        from tracehunter.api.app import create_app
+
+        repo = InMemoryTraceRepository()
+        trace = Trace("t")
+        trace.add_span(Span("a", span_id="1", metadata={"input_tokens": 7, "output_tokens": 3}))
+        repo.save(trace)
+        client = TestClient(create_app(repo, allowed_hosts=("testserver",)))
+        assert client.get("/api/traces").json()[0]["tokens"] == {"input": 7, "output": 3}
+        detail = client.get(f"/api/traces/{trace.trace_id}").json()
+        assert detail["tokens"] == {"input": 7, "output": 3}
+
+
+class TestCostEstimate:
+    def _table(self) -> "PriceTable":
+        return PriceTable({"anthropic/claude-sonnet-5.5": ModelPrice(2e-6, 1e-5, 1e-7, 2.5e-6)})
+
+    def test_model_names_are_normalized(self) -> None:
+        assert normalize_model("claude-sonnet-5-5") == "claude-sonnet-5.5"
+        assert normalize_model("anthropic/claude-opus-4-5-20251101") == "claude-opus-4.5"
+        assert normalize_model("claude-opus-5-5[1m]") == "claude-opus-5.5"
+        assert normalize_model("gpt-4o") == "gpt-4o"
+
+    def test_cost_includes_cache_tokens(self) -> None:
+        trace = Trace("t")
+        trace.add_span(
+            Span(
+                "a",
+                span_id="1",
+                metadata={
+                    "model": "claude-sonnet-5-5",
+                    "input_tokens": 1000,
+                    "output_tokens": 100,
+                    "cache_read_tokens": 10000,
+                    "cache_creation_tokens": 2000,
+                },
+            )
+        )
+        expected = 1000 * 2e-6 + 100 * 1e-5 + 10000 * 1e-7 + 2000 * 2.5e-6
+        assert abs(self._table().trace_cost(trace) - expected) < 1e-12  # type: ignore[operator]
+
+    def test_unknown_model_or_no_tokens_has_no_cost(self) -> None:
+        trace = Trace("t")
+        trace.add_span(Span("a", span_id="1", metadata={"model": "haiku", "input_tokens": 5}))
+        trace.add_span(Span("b", span_id="2", metadata={"model": "claude-sonnet-5-5"}))
+        assert self._table().trace_cost(trace) is None
+
+    def test_bundled_snapshot_loads_and_missing_file_is_empty(self, tmp_path: Path) -> None:
+        assert PriceTable.load().lookup("claude-sonnet-5-5") is not None
+        assert PriceTable.load().fetched
+        assert PriceTable.load(tmp_path / "nope.json").lookup("claude-sonnet-5-5") is None
+
+    def test_api_returns_cost(self) -> None:
+        from fastapi.testclient import TestClient
+
+        from tracehunter.api.app import create_app
+
+        repo = InMemoryTraceRepository()
+        trace = Trace("t")
+        trace.add_span(
+            Span(
+                "a",
+                span_id="1",
+                metadata={"model": "claude-sonnet-5-5", "input_tokens": 1000, "output_tokens": 100},
+            )
+        )
+        repo.save(trace)
+        client = TestClient(create_app(repo, allowed_hosts=("testserver",)))
+        assert client.get("/api/traces").json()[0]["cost_usd"] > 0
+        assert client.get(f"/api/traces/{trace.trace_id}").json()["cost_usd"] > 0

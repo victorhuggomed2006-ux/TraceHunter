@@ -199,6 +199,8 @@ def _llm_span(call: _Call) -> Span:
             "model": call.model,
             "input_tokens": usage.get("input_tokens"),
             "output_tokens": usage.get("output_tokens"),
+            "cache_read_tokens": usage.get("cache_read_input_tokens"),
+            "cache_creation_tokens": usage.get("cache_creation_input_tokens"),
             "stop_reason": call.stop_reason,
         },
         status=Status.COMPLETED,

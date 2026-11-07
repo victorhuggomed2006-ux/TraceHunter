@@ -96,6 +96,7 @@ It stays on your machine and is created with restricted permissions.
   or `cookie` are masked as `***`. Use `@tracer.observe(capture_io=False)` to record neither inputs nor outputs.
 - Exceptions mark the span and the trace as `FAILED` and are re-raised untouched. A failure while
   saving a trace is logged and never hides your exception or breaks your code.
+- Cost is an **estimate** at public list prices (OpenRouter snapshot, no network access at run time). It does not reflect subscription plans or discounts, and models not in the table show no cost.
 - Generators are not supported by `observe`; open a `tracer.span()` inside them.
 - A decorated function called with no active trace just runs, untraced; instrumentation never raises. A new
   thread does not inherit the current trace, so calls made there are not recorded unless you run them with

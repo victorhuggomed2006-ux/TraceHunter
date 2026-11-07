@@ -1,13 +1,15 @@
 """FastAPI app that exposes the saved traces and serves the web interface."""
 
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Sequence
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from tracehunter.domain.models import Trace
+from tracehunter.domain.pricing import PriceTable
 from tracehunter.domain.repository import TraceRepository
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -32,6 +34,18 @@ _SECURITY_HEADERS = {
 }
 
 
+def _cost(prices: PriceTable, trace: Trace) -> Optional[float]:
+    """Estimated cost in USD (4 decimals) or None when no span could be priced."""
+    cost = prices.trace_cost(trace)
+    return None if cost is None else round(cost, 4)
+
+
+def _tokens(trace: Trace) -> Dict[str, int]:
+    """Token totals of a trace for the API: {"input": n, "output": n}."""
+    total_in, total_out = trace.token_usage
+    return {"input": total_in, "output": total_out}
+
+
 def create_app(
     repository: TraceRepository, allowed_hosts: Sequence[str] = DEFAULT_ALLOWED_HOSTS
 ) -> FastAPI:
@@ -41,6 +55,7 @@ def create_app(
     """
     # No /docs, /redoc or /openapi.json: the exposed surface is only the UI and the read API.
     app = FastAPI(title="TraceHunter", docs_url=None, redoc_url=None, openapi_url=None)
+    prices = PriceTable.load()
 
     # Added before the headers middleware so that 400 responses also get the headers.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(allowed_hosts))
@@ -60,6 +75,8 @@ def create_app(
             data = trace.to_dict()
             data["span_count"] = len(data.pop("spans"))
             data["duration_seconds"] = trace.duration_seconds
+            data["tokens"] = _tokens(trace)
+            data["cost_usd"] = _cost(prices, trace)
             summaries.append(data)
         return summaries
 
@@ -70,6 +87,8 @@ def create_app(
             raise HTTPException(status_code=404, detail="Trace not found")
         data = trace.to_dict()
         data["duration_seconds"] = trace.duration_seconds
+        data["tokens"] = _tokens(trace)
+        data["cost_usd"] = _cost(prices, trace)
         for raw, span in zip(data["spans"], trace.spans, strict=False):
             raw["duration_seconds"] = span.duration_seconds
         return data

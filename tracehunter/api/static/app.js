@@ -85,6 +85,13 @@ function move(delta) {
   markSelected().scrollIntoView({ block: "nearest" });
 }
 
+// "1.2k in / 345 out" (empty when the trace has no token data)
+function ktok(n) { return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : String(n); }
+function tok(x) { return x && (x.input || x.output) ? ktok(x.input) + " / " + ktok(x.output) : "-"; }
+
+// "~$0.42" estimate (empty marker when no span could be priced)
+function usd(x) { return x == null ? "-" : "~$" + (x >= 1 ? x.toFixed(2) : x.toFixed(x >= 0.01 ? 3 : 4)); }
+
 function showList() {
   current = { view: "list", id: null };
   getJson("/api/traces").then(function (traces) {
@@ -94,10 +101,10 @@ function showList() {
       return;
     }
     h += "<table><tr><th>" + esc(t("th_name")) + "</th><th>" + esc(t("th_status")) + "</th><th>" + esc(t("th_steps")) +
-         "</th><th>" + esc(t("th_duration")) + "</th><th>" + esc(t("th_start")) + "</th></tr>";
+         "</th><th>" + esc(t("th_tokens")) + "</th><th>" + esc(t("th_cost")) + "</th><th>" + esc(t("th_duration")) + "</th><th>" + esc(t("th_start")) + "</th></tr>";
     traces.forEach(function (tr) {
       h += "<tr class='row' data-id='" + esc(tr.trace_id) + "'><td>" + esc(tr.name) + "</td><td>" + st(tr.status) +
-           "</td><td>" + tr.span_count + "</td><td>" + dur(tr.duration_seconds) + "</td><td>" + esc(when(tr.start_time)) + "</td></tr>";
+           "</td><td>" + tr.span_count + "</td><td>" + tok(tr.tokens) + "</td><td>" + usd(tr.cost_usd) + "</td><td>" + dur(tr.duration_seconds) + "</td><td>" + esc(when(tr.start_time)) + "</td></tr>";
     });
     content.innerHTML = h + "</table>";
     markSelected();
@@ -111,7 +118,9 @@ function showTrace(id) {
     var depth = {};
     var h = "<h2>" + esc(tr.name) + "</h2><div class='box" + (tr.status == "FAILED" ? " box-error" : "") + "'>" +
             esc(t("label_status")) + ": " + st(tr.status) + " &nbsp; " + esc(t("label_duration")) + ": " + dur(tr.duration_seconds) +
-            " &nbsp; " + esc(t("label_steps")) + ": " + tr.spans.length + "<br>" + esc(t("label_id")) + ": " + esc(tr.trace_id) + "</div>" +
+            " &nbsp; " + esc(t("label_steps")) + ": " + tr.spans.length +
+            (tr.tokens && (tr.tokens.input || tr.tokens.output) ? " &nbsp; " + esc(t("label_tokens")) + ": " + tok(tr.tokens) : "") +
+            (tr.cost_usd != null ? " &nbsp; " + esc(t("label_cost")) + ": " + usd(tr.cost_usd) : "") + "<br>" + esc(t("label_id")) + ": " + esc(tr.trace_id) + "</div>" +
             "<table><tr><th>" + esc(t("th_step")) + "</th><th>" + esc(t("th_status")) + "</th><th>" + esc(t("th_duration")) +
             "</th><th>" + esc(t("th_input")) + "</th><th>" + esc(t("th_output")) + "</th></tr>";
     tr.spans.forEach(function (s) {
