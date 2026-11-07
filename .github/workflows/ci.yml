@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # Monday 06:00 UTC: mutation testing and image scans
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# All third-party actions are pinned by SHA (the tag is in the comment);
+# Dependabot proposes the updates.
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: bandit -r tracehunter -c pyproject.toml
+      - run: xenon --max-absolute B --max-modules A --max-average A tracehunter
+      - run: pytest --cov=tracehunter --cov-report=term-missing
+
+  package:
+    # Make sure the wheel installs in a clean environment and ships the UI and py.typed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install "$(ls dist/*.whl)[server]"
+          /tmp/clean/bin/python -c "import tracehunter, importlib.resources as r; print(tracehunter.__version__); assert r.files('tracehunter.api').joinpath('static/app.js').is_file(); assert r.files('tracehunter').joinpath('py.typed').is_file()"
+          /tmp/clean/bin/tracehunter --version
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0  # gitleaks scans the whole history
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]"
+      - run: pip-audit
+      # Licenses of RUNTIME dependencies (not dev tools): blocks GPL/AGPL
+      - run: |
+          python -m venv /tmp/runtime
+          /tmp/runtime/bin/pip install ".[server]" pip-licenses
+          /tmp/runtime/bin/pip-licenses --partial-match --fail-on="GNU General Public License;GNU Affero"
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  semgrep:
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep:1.184.0
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: semgrep scan --config p/python --config p/security-audit --metrics=off --error tracehunter
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: docker build -t tracehunter:ci .
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: tracehunter:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0 (Syft: generates the SBOM)
+        with:
+          image: tracehunter:ci
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6 (Grype)
+        with:
+          image: tracehunter:ci
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true  # ignore what has no fix yet, like Trivy
+          output-format: table  # show the table in the log (the default is sarif)
+
+  iac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: bridgecrewio/checkov-action@45edc9d8856b664db2ec251f5f8632361f0a67aa # v12
+        with:
+          directory: .
+          framework: dockerfile,github_actions  # compose is covered by KICS
+      - uses: checkmarx/kics-github-action@05aa5eb70eede1355220f4ca5238d96b397e30a6 # v2.1.20
+        with:
+          path: Dockerfile,docker-compose.yml
+          fail_on: high
+
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: docker build -t tracehunter:ci .
+      - run: docker run -d --name tracehunter -p 127.0.0.1:8000:8000 tracehunter:ci
+      - name: Wait for the application to respond
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://127.0.0.1:8000/api/traces?limit=1" >/dev/null && exit 0
+            sleep 1
+          done
+          docker logs tracehunter
+          exit 1
+      - uses: zaproxy/action-baseline@7c4deb10e6261301961c86d65d54a516394f9aed # v0.14.0 (OWASP ZAP)
+        with:
+          target: http://127.0.0.1:8000
+          fail_action: true
+          allow_issue_writing: false  # no issues permission; the result goes to the log
+          rules_file_name: .zap/rules.tsv
+
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]"
+      - run: |
+          python examples/demo_data.py /tmp/load.db
+          python -m tracehunter /tmp/load.db &
+          sleep 3
+          locust -f tests/load/locustfile.py --host http://127.0.0.1:8000 \
+            --headless -u 30 -r 10 -t 20s --only-summary --exit-code-on-error 1
+
+  mutation:
+    # Slow: only on the weekly schedule or on demand. Informational, does not block merges.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]" mutmut
+      - run: mutmut run
+      - run: mutmut results

@@ -1,0 +1,41 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local trace data: stays on the user's computer only
+*.db
+
+# Personal instructions for Claude Code (do not commit)
+CLAUDE.local.md
+
+# Secrets and credentials (never commit)
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+credentials*.json
+secrets.*
+
+# Local databases and logs
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+*.log
+
+# Editors, system and tools
+.idea/
+.vscode/
+.DS_Store
+.coverage.*
+.claude/

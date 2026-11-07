@@ -1,0 +1,38 @@
+# Runs locally before every commit, using the project .venv (uv run --no-sync).
+# Install once: uv run --no-sync pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --no-sync ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --no-sync ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: uv run --no-sync mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: bandit
+        name: bandit
+        entry: uv run --no-sync bandit -q -r tracehunter -c pyproject.toml
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: xenon
+        name: xenon (complexity)
+        entry: uv run --no-sync xenon --max-absolute B --max-modules A --max-average A tracehunter
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: gitleaks
+        name: gitleaks (secrets)
+        entry: gitleaks git --staged --redact --config .gitleaks.toml
+        language: system
+        pass_filenames: false

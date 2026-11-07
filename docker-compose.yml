@@ -1,0 +1,19 @@
+services:
+  tracehunter:
+    build: .
+    user: "10001"
+    ports:
+      - "127.0.0.1:8000:8000"   # reachable only from this computer; the interface has no login
+    volumes:
+      - tracehunter-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 100
+
+volumes:
+  tracehunter-data:

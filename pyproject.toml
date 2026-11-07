@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tracehunter"
+version = "0.1.0"
+description = "Local-first observability for AI applications (LLMs, RAG and agents)."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Victor Huggo de Medeiros" }]
+requires-python = ">=3.10"
+keywords = ["observability", "tracing", "llm", "ai", "rag", "agents", "local-first"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/victorhuggomed2006-ux/TraceHunter"
+Issues = "https://github.com/victorhuggomed2006-ux/TraceHunter/issues"
+Source = "https://github.com/victorhuggomed2006-ux/TraceHunter"
+
+[project.scripts]
+tracehunter = "tracehunter.__main__:main"
+
+[project.optional-dependencies]
+server = ["fastapi>=0.115", "uvicorn>=0.30"]
+tui = ["textual>=0.80"]
+dev = [
+    "pytest>=7", "pytest-cov>=4", "httpx>=0.24", "fastapi>=0.115", "uvicorn>=0.30",
+    "ruff>=0.6", "mypy>=1.10", "bandit>=1.7", "pip-audit>=2.7",
+    "hypothesis>=6", "radon>=6", "xenon>=0.9", "pre-commit>=3.7",
+    "pip-licenses>=5", "locust>=2.20", "build>=1.2", "twine>=5", "textual>=0.80",
+]
+
+[tool.setuptools.packages.find]
+include = ["tracehunter*"]
+
+[tool.setuptools.package-data]
+tracehunter = ["py.typed"]
+"tracehunter.api" = ["static/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# E/F/W: pycodestyle and pyflakes; I: imports; B: bugbear; UP: modernization; S: security (bandit)
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = ["UP006", "UP007", "UP035", "UP045"]  # keep typing.Optional/List/Dict (project style)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # assert is normal in tests
+"examples/*" = ["S105", "S106"]  # the examples use made-up values
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["tracehunter", "tests"]
+exclude = [".venv"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+# test fixtures and parameters need no annotations; production code stays strict
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
+disallow_incomplete_defs = false
+warn_return_any = false
+
+[tool.mutmut]
+paths_to_mutate = ["tracehunter/domain/", "tracehunter/application/"]
+tests_dir = ["tests/"]

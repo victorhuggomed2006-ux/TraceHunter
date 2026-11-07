@@ -1,0 +1,6 @@
+# Use the default gitleaks rules and ignore what is not project code.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = ['''(^|/)\.venv/''', '''(^|/)\.mypy_cache/''', '''(^|/)\.ruff_cache/''', '''(^|/)\.pytest_cache/''']

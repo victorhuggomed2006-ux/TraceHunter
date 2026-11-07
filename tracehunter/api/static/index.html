@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="terminal">
+<head>
+<meta charset="utf-8">
+<title>TraceHunter</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/terminal.css">
+</head>
+<body>
+<div id="navbar">
+  <div class="navbar-inner">
+    <span id="brand">TraceHunter</span>
+    <span id="tagline" data-t="tagline">Local observability for AI applications</span>
+    <span id="nav">
+      <a id="nav-list" data-t="nav_traces">Traces</a>
+      <a id="nav-refresh" data-t="nav_refresh">Refresh</a>
+      <label id="auto-wrap"><input type="checkbox" id="auto" checked> <span data-t="auto_refresh">Auto-refresh</span></label>
+      <select id="theme"></select>
+      <select id="lang"></select>
+    </span>
+  </div>
+</div>
+<div id="content"></div>
+<div id="footer"><span data-t="footer">TraceHunter v0.1 &middot; your data stays on your computer</span><span id="hint">j/k &uarr;&darr; &middot; enter &middot; esc &middot; r &middot; t</span></div>
+<script src="/static/i18n.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
