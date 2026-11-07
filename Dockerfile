@@ -4,6 +4,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TRACEHUNTER_HOST=0.0.0.0
 
+# Pull in Debian security fixes (e.g. zlib1g) published after the base image was built.
+RUN apt-get update \n    && apt-get upgrade -y --no-install-recommends \n    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY tracehunter ./tracehunter

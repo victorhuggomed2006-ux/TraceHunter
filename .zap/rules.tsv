@@ -1,2 +1,3 @@
 10109	IGNORE	(Modern Web Application: informational only)
 10049	IGNORE	(Non-Storable Content: expected effect of Cache-Control no-store)
+10027	IGNORE	(Suspicious Comments: keyword match in our own static JS, informational)
