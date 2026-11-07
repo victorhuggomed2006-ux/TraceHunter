@@ -1,41 +1,145 @@
-.venv/
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Test, coverage and tooling caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pytype/
+.pyre/
 .hypothesis/
+.tox/
+.nox/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
-build/
-dist/
+.cache/
+nosetests.xml
+*.cover
+*.prof
 
-# Local trace data: stays on the user's computer only
-*.db
+# Notebooks and profiling
+.ipynb_checkpoints/
+*.pstats
+scalene*.json
 
-# Personal instructions for Claude Code (do not commit)
-CLAUDE.local.md
-
-# Secrets and credentials (never commit)
+# ---------------------------------------------------------------------------
+# Secrets and credentials: never commit these (gitleaks also checks)
+# ---------------------------------------------------------------------------
 .env
 .env.*
+!.env.example
+!.env.sample
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.asc
+*.gpg
 id_rsa*
+id_ed25519*
 credentials*.json
+service-account*.json
+client_secret*.json
 secrets.*
+*.secret
+*.secrets
+.netrc
+.npmrc
+.pypirc
+.aws/
+.ssh/
+.kube/
+kubeconfig*
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
 
-# Local databases and logs
-*.sqlite
-*.sqlite3
+# ---------------------------------------------------------------------------
+# Local data: stays on the user's computer only
+# ---------------------------------------------------------------------------
+# Trace databases hold prompts and tool output
+*.db
 *.db-wal
 *.db-shm
 *.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+# Raw AI CLI session files (collectors read them, they never belong in the repository)
+*.jsonl
 *.log
+*.pid
+*.tmp
+*.bak
+*.swp
+tmp/
+temp/
 
-# Editors, system and tools
+# Reports written by local security and load scans
+*.sarif
+zap-report*
+.zap/*.html
+.zap/*.json
+.zap/*.md
+locust_*.csv
+locust_*.html
+bandit-report*
+pip-audit-report*
+trivy-*.json
+grype-*.json
+sbom*.json
+
+# ---------------------------------------------------------------------------
+# AI coding tools: personal settings and local state (do not commit)
+# ---------------------------------------------------------------------------
+CLAUDE.local.md
+.claude/
+.cursor/
+.cursorrules
+.windsurf/
+.aider*
+.continue/
+.codex/
+.gemini/
+.github/copilot-instructions.local.md
+
+# ---------------------------------------------------------------------------
+# Editors, OS and Docker overrides
+# ---------------------------------------------------------------------------
 .idea/
 .vscode/
+*.code-workspace
+*.sublime-*
 .DS_Store
-.coverage.*
-.claude/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+docker-compose.override.yml

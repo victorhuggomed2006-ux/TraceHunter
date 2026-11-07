@@ -1,6 +1,69 @@
-# Use the default gitleaks rules and ignore what is not project code.
+# gitleaks configuration: scans the working tree (pre-commit) and the full history (CI).
+# It extends the built-in ruleset (150+ providers) and adds rules for the formats this project
+# actually handles. Keep the allowlists narrow: every exception is a place a real secret could hide.
+title = "TraceHunter gitleaks config"
+
 [extend]
 useDefault = true
 
-[allowlist]
-paths = ['''(^|/)\.venv/''', '''(^|/)\.mypy_cache/''', '''(^|/)\.ruff_cache/''', '''(^|/)\.pytest_cache/''']
+# --- extra rules -------------------------------------------------------------------------------
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-(?:api|admin)\d{2}-[A-Za-z0-9_\-]{20,}'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "openrouter-api-key"
+description = "OpenRouter API key"
+regex = '''sk-or-v1-[a-f0-9]{32,}'''
+keywords = ["sk-or-v1-"]
+
+[[rules]]
+id = "huggingface-token"
+description = "Hugging Face access token"
+regex = '''\bhf_[A-Za-z0-9]{30,}\b'''
+keywords = ["hf_"]
+
+[[rules]]
+id = "pypi-api-token"
+description = "PyPI API token (publishing uses trusted publishing, so none should exist)"
+regex = '''pypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{50,}'''
+keywords = ["pypi-agei"]
+
+[[rules]]
+id = "basic-auth-in-url"
+description = "Credentials embedded in a URL (scheme://user:password@host)"
+regex = '''(?i)\b[a-z][a-z0-9+.\-]*://[^/\s:@"']{1,64}:[^/\s:@"']{3,}@[^/\s"']+'''
+keywords = ["://"]
+
+  [rules.allowlist]
+  description = "Documentation placeholders"
+  regexes = ['''(?i)://(user|username|name|login):(pass|password|secret|\*+)@''', '''(?i)://[^:@/\s]+:(\*{3}|x{3,}|<[^>]+>|\$\{?\w+\}?)@''']
+
+# --- allowlist -----------------------------------------------------------------------------------
+
+[[allowlists]]
+description = "Generated files, caches and binary assets that are not project source"
+paths = [
+  '''(^|/)\.venv/''',
+  '''(^|/)venv/''',
+  '''(^|/)\.mypy_cache/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)\.hypothesis/''',
+  '''(^|/)__pycache__/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)(dist|build)/''',
+  '''(^|/)[^/]+\.egg-info/''',
+  '''(^|/)docs/images/''',
+  '''(^|/)tracehunter/domain/prices\.json$''',
+]
+
+# The redaction tests need realistic-looking fake secrets. The exception is limited to that one file
+# and to the two rules those fakes resemble, so a real secret anywhere else is still caught.
+[[allowlists]]
+description = "Fake credentials used as test data for the redaction code"
+targetRules = ["basic-auth-in-url", "huggingface-token"]
+paths = ['''tests/test_review_fixes\.py$''']

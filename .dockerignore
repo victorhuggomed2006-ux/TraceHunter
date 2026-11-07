@@ -1,10 +1,32 @@
-# Allowlist: only what the image actually uses goes into the build context.
+# Allowlist: exclude everything, then re-include only what the image actually uses.
+# This keeps secrets, local databases, git history, tests and CI files out of the build context
+# (and out of the image layers) even if a new file is created by mistake.
 *
+
 !pyproject.toml
 !README.md
 !LICENSE
 !tracehunter
+
+# Even inside the re-included package directory, never ship these.
 **/__pycache__
-**/*.pyc
+**/*.py[cod]
+**/*.egg-info
 **/*.db
-**/.env*
+**/*.db-*
+**/*.sqlite*
+**/*.jsonl
+**/*.log
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa*
+**/id_ed25519*
+**/credentials*.json
+**/.git
+**/.git*
+**/.DS_Store
+**/Thumbs.db
