@@ -92,7 +92,7 @@ jobs:
           image: tracehunter:ci
           format: spdx-json
           output-file: sbom.spdx.json
-      - uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6 (Grype)
+      - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v6 (Grype)
         with:
           image: tracehunter:ci
           fail-build: true
